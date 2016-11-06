@@ -194,20 +194,77 @@ def slr(streamlines_target,centroids_atlas2):
 #color_array_target = []
     return slm.transform(discrete_target)
 
-discrete_target = slr(streamlines_target,centroids_atlas2)
+def getting_final_streamline(streamlines_target, centroids_atlas2,color_array2,threshold):
+    discrete_target = slr(streamlines_target,centroids_atlas2)
 
-distance_matrix = bundles_distances_mdf(centroids_atlas2, discrete_target)
+    distance_matrix = bundles_distances_mdf(centroids_atlas2, discrete_target)
 
-index_whole = np.argmin(distance_matrix,axis=0)
+    index_whole = np.argmin(distance_matrix,axis=0)
 
-stream_line_min = np.amin(distance_matrix,axis=0)
+    stream_line_min = np.amin(distance_matrix,axis=0)
 
-index_threshold = np.where(stream_line_min < 10)
+    index_threshold = np.where(stream_line_min < threshold)
 
-streamline_final = streamlines_target[index_threshold[0]]
+    streamline_final = streamlines_target[index_threshold[0]]
 
-color_array_target = color_array2[index_whole[index_threshold[0]],:]
+    color_array_target = color_array2[index_whole[index_threshold[0]],:]
 
+#    final_index_whole = index_whole[index_threshold[0]]
+
+    return streamline_final, color_array_target, index_whole, index_threshold
+
+def computing_accuracy(streamline_atlas, streamline_compute):
+    distance_matrix = bundles_distances_mdf(streamline_atlas, streamline_compute)
+
+    stream_line_min = np.amin(distance_matrix,axis=0)
+
+    index_threshold_accuracy = np.where(stream_line_min < 0.01)
+
+    print(len(index_threshold_accuracy[0]))
+
+    return len(index_threshold_accuracy[0])/(len(streamline_atlas) + len(streamline_compute) - len(index_threshold_accuracy[0]))
+
+def finding_corresponding_index(low, high, index_whole, index_threshold,streamline_target):
+    if low == 0:
+        s = np.where(index_whole < high)
+    else:
+        s = np.where(np.logical_and(index_whole > low , index_whole < high))
+
+    indices = np.where(np.in1d(s,index_threshold))[0]
+
+    ss = s[0][indices]
+
+    streamline_part = streamline_target[ss]
+
+    return ss, indices, streamline_part
+
+
+def computing_range_accuracy(low, high, index_whole, index_threshold,streamline_target, atlas_part, key):
+    ss, indices, streamline_part = finding_corresponding_index(low, high, index_whole, index_threshold,streamline_target)
+
+    streamline_np = np.array(streamline_part, dtype = np.object)
+
+    np.save(key,streamline_np)
+
+    accuracy = computing_accuracy(atlas_part, streamline_part)
+
+    print(key)
+    print(accuracy)
+
+
+def saving(index_whole, index_threshold,streamline_target, keys):
+
+    for i in range(27):
+        if i == 0:
+            computing_range_accuracy(0, 4, index_whole, index_threshold,streamline_target, full_atlas2[i], keys[i])
+        else:
+            low = (i+1)*4 - 5
+            high = (i+1)*4
+
+            computing_range_accuracy(low, high, index_whole, index_threshold,streamline_target, full_atlas[i], keys[i])
+#    return computing_accuracy(atlas_part, streamline_part)
+
+streamline_final, color_array_target, index_whole, index_threshold = getting_final_streamline(streamlines_target, centroids_atlas2,color_array2,10)
 
 #bundle_labels_npy = []
 
