@@ -2,7 +2,7 @@ from dipy.viz import actor, window
 
 import numpy as np
 
-from dipy.exp_comparisons_experts import labelize_expert_bundles
+# from dipy.exp_comparisons_experts import labelize_expert_bundles
 
 from dipy.align.streamlinear import remove_clusters_by_size
 
@@ -38,9 +38,13 @@ def show_streamlines(streamlines,streamlines2, color_array,color_array2,translat
     window.show(renderer, title='DIPY', size=(300, 300), png_magnify=1, reset_camera=True, order_transparent=False)
 
 
-dname_atlas = '/Users/tiwanyan/Mount/2013_02_08_Gabriel_Girard/TRK_Files/'
+data_dir = '/home/elef/Data/fancy_data_5_subj/'
 
-dname_full_atlas_streamlines = '/Users/tiwanyan/Mount/2013_02_08_Gabriel_Girard/streamlines_500K.trk'
+#dname_atlas = data_dir + '2013_02_08_Gabriel_Girard/TRK_Files/'
+dname_atlas = '/home/elef/Data/fancy_data_5_subj/2013_02_08_Gabriel_Girard/TRK_files/'
+
+
+dname_full_atlas_streamlines = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
 
 atlas_dix = {}
 
@@ -72,7 +76,7 @@ atlas_dix['slf_3.right'] = {'filename' : dname_atlas + 'bundles_slf_3.right.trk'
 atlas_dix['uf.left'] = {'filename' : dname_atlas + 'bundles_uf.left.trk'}
 atlas_dix['uf.right'] = {'filename' : dname_atlas + 'bundles_uf.right.trk'}
 
-streamlines_file = '/Users/tiwanyan/Mount/2013_02_08_Gabriel_Girard/streamlines_500K.trk'
+streamlines_file = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
 
 from dipy.io.trackvis import load_trk
 
