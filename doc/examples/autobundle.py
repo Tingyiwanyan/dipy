@@ -88,6 +88,8 @@ metric = AveragePointwiseEuclideanMetric()
 
 full_atlas2 = []
 keys = []
+centroids_num = []
+total_centroid_num = 0
 
 
 for key in atlas_dix:
@@ -101,16 +103,21 @@ for key in atlas_dix:
     atlas_dix[key]['centroids'] = clusters[0].centroid
     lengh_cluster = len(clusters)
     num_centroid = int(round(lengh_cluster * 1))
-
+    if total_centroid_num == 0:
+        atlas_dix[key]['low_high'] = [total_centroid_num, num_centroid]
+    else:
+        atlas_dix[key]['low_high'] = [total_centroid_num - 1, total_centroid_num + num_centroid]
     print(num_centroid)
     if num_centroid == 0:
         num_centroid = 1
     for i in range(num_centroid):
         centroids_atlas += [clusters[i].centroid]
 
+    total_centroid_num = total_centroid_num + num_centroid
     # show_streamlines(streamlines)
     full_atlas.extend(streamlines)
     full_atlas2.append(streamlines)
+    centroids_num.append(num_centroid)
     keys.append(key)
     # show_streamlines(full_atlas)
     # del streamlines
@@ -213,6 +220,22 @@ def finding_corresponding_index(low, high, index_whole, index_threshold,streamli
 
     return ss, indices, streamline_part
 
+def visualization(low, high, index_whole, index_threshold, streamline_target, atlas_part, key, translate=False):
+    low = atlas_dix[key]['low_high'][0]
+
+    high = atlas_dix[key]['low_high'][1]
+    if low == 0:
+        s = np.where(index_whole < high)
+    else:
+        s = np.where(np.logical_and(index_whole > low , index_whole < high))
+
+    indices = np.where(np.in1d(s,index_threshold))[0]
+
+    ss = s[0][indices]
+
+    streamline_part = streamline_target[ss]
+
+    show_streamlines(atlas_part ,streamline_part,[0,0.5,0],[0,0,0.4],translate)
 
 def computing_range_accuracy(low, high, index_whole, index_threshold,streamline_target, atlas_part, key):
     ss, indices, streamline_part = finding_corresponding_index(low, high, index_whole, index_threshold,streamline_target)
@@ -227,4 +250,4 @@ def computing_range_accuracy(low, high, index_whole, index_threshold,streamline_
     print(jaccard)
     print(accuracy)
 
-streamline_final, color_array_target, index_whole, index_threshold = getting_final_streamline(streamlines_target, centroids_atlas,color_array,10)
+streamline_final, color_array_target, index_whole, index_threshold = getting_final_streamline(streamlines_target, centroids_atlas,color_array,50)
