@@ -38,13 +38,13 @@ def show_streamlines(streamlines,streamlines2, color_array,color_array2,translat
     window.show(renderer, title='DIPY', size=(300, 300), png_magnify=1, reset_camera=True, order_transparent=False)
 
 
-data_dir = '/home/elef/Data/fancy_data_5_subj/'
+data_dir = '/Users/tiwanyan/Mount/'
 
 #dname_atlas = data_dir + '2013_02_08_Gabriel_Girard/TRK_Files/'
-dname_atlas = '/home/elef/Data/fancy_data_5_subj/2013_02_08_Gabriel_Girard/TRK_files/'
+dname_atlas = data_dir + '/2013_02_08_Gabriel_Girard/TRK_files/'
 
 
-dname_full_atlas_streamlines = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
+dname_full_atlas_streamlines = '/Users/tiwanyan/Mount/2013_02_08_Gabriel_Girard/streamlines_500K.trk'
 
 atlas_dix = {}
 
@@ -203,13 +203,13 @@ def computing_accuracy(streamline_atlas, streamline_compute):
     distance_matrix = bundles_distances_mdf(streamline_atlas, streamline_compute)
 
     from ipdb import set_trace
-    set_trace()
+    #set_trace()
 
     stream_line_min = np.amin(distance_matrix, axis=0)
 
     index_threshold_accuracy = np.where(stream_line_min < 0.01)
 
-    set_trace()
+    #set_trace()
     print(len(index_threshold_accuracy[0]))
 
     return (len(index_threshold_accuracy[0])/np.float(len(streamline_atlas) + len(streamline_compute) - len(index_threshold_accuracy[0])),
@@ -253,12 +253,13 @@ def visualization(key, index_whole, index_threshold, streamline_target, atlas_pa
     # print(s)
     #set_trace()
     ss = s[indices]
-    set_trace()
+    #set_trace()
 
     # for discrete
-    # streamlines_part = [streamlines_target[ss_] for ss_ in ss]
-    streamline_part = streamline_target[ss]
-    set_trace()
+    streamline_part = [streamline_target[i] for i in ss]
+    #streamlines_part = [streamlines_target[ss_] for ss_ in ss]
+    #streamline_part = streamline_target[ss]
+    #set_trace()
 
     show_streamlines(atlas_part, streamline_part,
                      [0, 0.5, 0], [0, 0, 0.4], translate)
@@ -282,13 +283,14 @@ def computing_range_accuracy(key, index_whole, index_threshold, streamline_targe
 if __name__ == '__main__':
 
     res = getting_final_streamline(streamlines_target, centroids_atlas,
-                                   color_array, 15)
+                                   color_array, 6)
     streamline_final, color_array_target, index_whole, index_threshold = res
 
-    # discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
+    discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
 
-    visualization(keys[1], index_whole, index_threshold, streamlines_target, full_atlas2[1], False)
+    for i in range(27):
+        visualization(keys[i], index_whole, index_threshold, discrete_streamlines_target, full_atlas2[i], False)
 
-    computing_range_accuracy(keys[1], index_whole, index_threshold,
-                             streamlines_target,
-                             atlas_part=full_atlas2[1])
+        computing_range_accuracy(keys[i], index_whole, index_threshold,
+                                streamlines_target,
+                                atlas_part=full_atlas2[i])
