@@ -219,16 +219,19 @@ def computing_accuracy(streamline_atlas, streamline_compute):
 def finding_corresponding_index(key, index_whole, index_threshold, streamline_target):
 
     low = atlas_dix[key]['low_high'][0]
+
     high = atlas_dix[key]['low_high'][1]
-
     if low == 0:
-        s = np.where(index_whole < high)
+        s = np.where(index_whole < high)[0]
     else:
-        s = np.where(np.logical_and(index_whole > low, index_whole < high))
+        s = np.where(np.logical_and(index_whole > low, index_whole < high))[0]
 
-    indices = np.where(np.in1d(s, index_threshold))[0]
+    indices = np.where(np.in1d(s, index_threshold[0]))[0]
 
-    ss = s[0][indices]
+    # from ipdb import set_trace
+    # set_trace()
+    ss = s[indices]
+    # set_trace()
 
     streamline_part = streamline_target[ss]
 
@@ -240,15 +243,22 @@ def visualization(key, index_whole, index_threshold, streamline_target, atlas_pa
 
     high = atlas_dix[key]['low_high'][1]
     if low == 0:
-        s = np.where(index_whole < high)
+        s = np.where(index_whole < high)[0]
     else:
-        s = np.where(np.logical_and(index_whole > low, index_whole < high))
+        s = np.where(np.logical_and(index_whole > low, index_whole < high))[0]
 
-    indices = np.where(np.in1d(s, index_threshold))[0]
+    indices = np.where(np.in1d(s, index_threshold[0]))[0]
 
-    ss = s[0][indices]
+    from ipdb import set_trace
+    # print(s)
+    #set_trace()
+    ss = s[indices]
+    set_trace()
 
+    # for discrete
+    # streamlines_part = [streamlines_target[ss_] for ss_ in ss]
     streamline_part = streamline_target[ss]
+    set_trace()
 
     show_streamlines(atlas_part, streamline_part,
                      [0, 0.5, 0], [0, 0, 0.4], translate)
@@ -271,15 +281,14 @@ def computing_range_accuracy(key, index_whole, index_threshold, streamline_targe
 
 if __name__ == '__main__':
 
-
-
     res = getting_final_streamline(streamlines_target, centroids_atlas,
                                    color_array, 15)
     streamline_final, color_array_target, index_whole, index_threshold = res
 
+    # discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
+
     visualization(keys[1], index_whole, index_threshold, streamlines_target, full_atlas2[1], False)
 
-#    discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
     computing_range_accuracy(keys[1], index_whole, index_threshold,
                              streamlines_target,
                              atlas_part=full_atlas2[1])
