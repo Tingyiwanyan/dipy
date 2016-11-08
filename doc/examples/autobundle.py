@@ -39,7 +39,7 @@ def show_streamlines(streamlines,streamlines2, color_array,color_array2,translat
 
 
 # data_dir = '/Users/tiwanyan/Mount/'
-data_dir = '/home/elef/Data/fancy_data_5_subj/'
+data_dir = '/Users/tiwanyan/Mount/'
 
 dname_atlas = data_dir + '2013_02_08_Gabriel_Girard/TRK_files/'
 
@@ -52,10 +52,10 @@ atlas_dix['cc_1'] = {'filename': dname_atlas + 'bundles_cc_1.trk'}
 atlas_dix['cc_2'] = {'filename': dname_atlas + 'bundles_cc_2.trk'}
 atlas_dix['cc_3'] = {'filename': dname_atlas + 'bundles_cc_3.trk'}
 atlas_dix['cc_4'] = {'filename': dname_atlas + 'bundles_cc_4.trk'}
-atlas_dix['cc_5'] = {'filename' : dname_atlas + 'bundles_cc_5.trk'}
-atlas_dix['cc_6'] = {'filename' : dname_atlas + 'bundles_cc_6.trk'}
-atlas_dix['cc_7'] = {'filename' : dname_atlas + 'bundles_cc_7.trk'}
-atlas_dix['af.right'] = {'filename' : dname_atlas + 'bundles_af.right.trk'}
+atlas_dix['cc_5'] = {'filename': dname_atlas + 'bundles_cc_5.trk'}
+atlas_dix['cc_6'] = {'filename': dname_atlas + 'bundles_cc_6.trk'}
+atlas_dix['cc_7'] = {'filename': dname_atlas + 'bundles_cc_7.trk'}
+atlas_dix['af.right'] = {'filename': dname_atlas + 'bundles_af.right.trk'}
 atlas_dix['cg.left'] = {'filename' : dname_atlas + 'bundles_cg.left.trk'}
 atlas_dix['cg.right'] = {'filename' : dname_atlas + 'bundles_cg.right.trk'}
 atlas_dix['cst.left'] = {'filename' : dname_atlas + 'bundles_cst.left.trk'}
@@ -75,8 +75,8 @@ atlas_dix['slf_3.right'] = {'filename' : dname_atlas + 'bundles_slf_3.right.trk'
 atlas_dix['uf.left'] = {'filename' : dname_atlas + 'bundles_uf.left.trk'}
 atlas_dix['uf.right'] = {'filename' : dname_atlas + 'bundles_uf.right.trk'}
 
-# streamlines_file = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
-streamlines_file = data_dir + '2013_03_26_Emmanuelle_Renauld/streamlines_500K.trk'
+streamlines_file = data_dir + '2013_02_26_Patrick_Delattre/streamlines_500K.trk'
+#streamlines_file = data_dir + '2013_02_13_Vincent_Laverdiere/streamlines_500K.trk'
 
 from dipy.io.trackvis import load_trk
 
@@ -95,16 +95,34 @@ keys = []
 centroids_num = []
 total_centroid_num = 0
 
+def remove_outlier(streamline_atlas,threshold):
+    discrete_streamlines = set_number_of_points(streamline_atlas, 20)
+    clusters = QuickBundles(threshold=20.,
+                            metric=metric).cluster(discrete_streamlines)
+    num_centroid = int(round(len(clusters) * 0.4))
+    if num_centroid == 0:
+        num_centroid = 1
+    centroid_atlas = []
+    for i in range(num_centroid):
+        centroid_atlas += [clusters[i].centroid]
+    #from ipdb import set_trace
+    #set_trace()
+    distance_matrix = bundles_distances_mdf(centroid_atlas, discrete_streamlines)
+    stream_line_min = np.amin(distance_matrix, axis=0)
+    s = np.where(stream_line_min < threshold)
+    ss = [s[0][i] for i in range(len(s[0]))]
+
+#    set_trace()
+    return [streamline_atlas[i] for i in ss]
 
 for key in atlas_dix:
     filename = atlas_dix[key]['filename']
 
     streamlines, header = load_trk(filename)
 
-
-
     atlas_dix[key]['streamlines'] = streamlines
     discrete_streamlines = set_number_of_points(streamlines, 20)
+    discrete_streamlines = remove_outlier(discrete_streamlines, 15)
     clusters = QuickBundles(threshold=15.,
                             metric=metric).cluster(discrete_streamlines)
     atlas_dix[key]['centroids'] = clusters[0].centroid
@@ -133,6 +151,7 @@ color_array = np.random.rand(len(centroids_atlas), 3) * 10
 streamlines_target, header_target = load_trk(streamlines_file)
 
 print('Large streamlines loaded')
+
 
 def slr(streamlines_target,centroids_atlas2):
     greater_than = 50
@@ -292,6 +311,17 @@ if __name__ == '__main__':
     dm_thr = 15
     use_slr = True
     compute_accuracy = False
+
+#    for i in range(27):
+#        new_atlas = remove_outlier(full_atlas2[i], 15)
+#        print(len(new_atlas))
+#        print(len(full_atlas2[i]))
+#        show_streamlines(new_atlas,full_atlas2[i], [0,0.5,0],[0,0,0.4],translate=True)
+
+#    set_trace()
+    #streamline_atlas[ss]
+
+    #new_atlas = remove_outlier(full_atlas2[0],15)
 
     res = getting_final_streamline(streamlines_target, centroids_atlas,
                                    color_array, dm_thr, use_slr)
