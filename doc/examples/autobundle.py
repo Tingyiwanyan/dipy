@@ -38,13 +38,12 @@ def show_streamlines(streamlines,streamlines2, color_array,color_array2,translat
     window.show(renderer, title='DIPY', size=(300, 300), png_magnify=1, reset_camera=True, order_transparent=False)
 
 
-data_dir = '/Users/tiwanyan/Mount/'
+# data_dir = '/Users/tiwanyan/Mount/'
+data_dir = '/home/elef/Data/fancy_data_5_subj/'
 
-#dname_atlas = data_dir + '2013_02_08_Gabriel_Girard/TRK_Files/'
-dname_atlas = data_dir + '/2013_02_08_Gabriel_Girard/TRK_files/'
+dname_atlas = data_dir + '2013_02_08_Gabriel_Girard/TRK_files/'
 
-
-dname_full_atlas_streamlines = '/Users/tiwanyan/Mount/2013_02_08_Gabriel_Girard/streamlines_500K.trk'
+dname_full_atlas_streamlines = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
 
 atlas_dix = {}
 
@@ -76,7 +75,8 @@ atlas_dix['slf_3.right'] = {'filename' : dname_atlas + 'bundles_slf_3.right.trk'
 atlas_dix['uf.left'] = {'filename' : dname_atlas + 'bundles_uf.left.trk'}
 atlas_dix['uf.right'] = {'filename' : dname_atlas + 'bundles_uf.right.trk'}
 
-streamlines_file = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
+# streamlines_file = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
+streamlines_file = data_dir + '2013_03_26_Emmanuelle_Renauld/streamlines_500K.trk'
 
 from dipy.io.trackvis import load_trk
 
@@ -100,6 +100,9 @@ for key in atlas_dix:
     filename = atlas_dix[key]['filename']
 
     streamlines, header = load_trk(filename)
+
+
+
     atlas_dix[key]['streamlines'] = streamlines
     discrete_streamlines = set_number_of_points(streamlines, 20)
     clusters = QuickBundles(threshold=15.,
@@ -179,9 +182,13 @@ def slr(streamlines_target,centroids_atlas2):
     return slm.transform(discrete_target)
 
 
-def getting_final_streamline(streamlines_target, centroids_atlas2, color_array2, threshold):
-#    discrete_target = slr(streamlines_target,centroids_atlas2)
-    discrete_target = set_number_of_points(streamlines_target, nb_points=20)
+def getting_final_streamline(streamlines_target, centroids_atlas2, color_array2, threshold, use_slr=True):
+
+    if use_slr:
+        discrete_target = slr(streamlines_target, centroids_atlas2)
+    else:
+        discrete_target = set_number_of_points(streamlines_target,
+                                               nb_points=20)
 
     distance_matrix = bundles_distances_mdf(centroids_atlas2, discrete_target)
 
@@ -282,15 +289,21 @@ def computing_range_accuracy(key, index_whole, index_threshold, streamline_targe
 
 if __name__ == '__main__':
 
+    dm_thr = 15
+    use_slr = True
+    compute_accuracy = False
+
     res = getting_final_streamline(streamlines_target, centroids_atlas,
-                                   color_array, 6)
+                                   color_array, dm_thr, use_slr)
     streamline_final, color_array_target, index_whole, index_threshold = res
 
     discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
 
     for i in range(27):
-        visualization(keys[i], index_whole, index_threshold, discrete_streamlines_target, full_atlas2[i], False)
+        visualization(keys[i], index_whole, index_threshold,
+                      discrete_streamlines_target, full_atlas2[i], True)
 
-        computing_range_accuracy(keys[i], index_whole, index_threshold,
-                                streamlines_target,
-                                atlas_part=full_atlas2[i])
+        if compute_accuracy:
+            computing_range_accuracy(keys[i], index_whole, index_threshold,
+                                     streamlines_target,
+                                     atlas_part=full_atlas2[i])
