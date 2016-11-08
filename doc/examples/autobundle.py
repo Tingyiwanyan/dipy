@@ -120,7 +120,7 @@ for key in atlas_dix:
     total_centroid_num = total_centroid_num + num_centroid
     # show_streamlines(streamlines)
     full_atlas.extend(streamlines)
-    full_atlas2.append(streamlines)
+    full_atlas2.append(discrete_streamlines)
     centroids_num.append(num_centroid)
     keys.append(key)
     # show_streamlines(full_atlas)
@@ -202,21 +202,31 @@ def getting_final_streamline(streamlines_target, centroids_atlas2, color_array2,
 def computing_accuracy(streamline_atlas, streamline_compute):
     distance_matrix = bundles_distances_mdf(streamline_atlas, streamline_compute)
 
-    stream_line_min = np.amin(distance_matrix,axis=0)
+    from ipdb import set_trace
+    set_trace()
+
+    stream_line_min = np.amin(distance_matrix, axis=0)
 
     index_threshold_accuracy = np.where(stream_line_min < 0.01)
 
+    set_trace()
     print(len(index_threshold_accuracy[0]))
 
-    return len(index_threshold_accuracy[0])/(len(streamline_atlas) + len(streamline_compute) - len(index_threshold_accuracy[0])), len(index_threshold_accuracy[0])/len(streamline_atlas)
+    return (len(index_threshold_accuracy[0])/np.float(len(streamline_atlas) + len(streamline_compute) - len(index_threshold_accuracy[0])),
+            len(index_threshold_accuracy[0])/np.float(len(streamline_atlas)))
 
-def finding_corresponding_index(low, high, index_whole, index_threshold,streamline_target):
+
+def finding_corresponding_index(key, index_whole, index_threshold, streamline_target):
+
+    low = atlas_dix[key]['low_high'][0]
+    high = atlas_dix[key]['low_high'][1]
+
     if low == 0:
         s = np.where(index_whole < high)
     else:
-        s = np.where(np.logical_and(index_whole > low , index_whole < high))
+        s = np.where(np.logical_and(index_whole > low, index_whole < high))
 
-    indices = np.where(np.in1d(s,index_threshold))[0]
+    indices = np.where(np.in1d(s, index_threshold))[0]
 
     ss = s[0][indices]
 
@@ -224,34 +234,52 @@ def finding_corresponding_index(low, high, index_whole, index_threshold,streamli
 
     return ss, indices, streamline_part
 
-def visualization(low, high, index_whole, index_threshold, streamline_target, atlas_part, key, translate=False):
+
+def visualization(key, index_whole, index_threshold, streamline_target, atlas_part, translate=False):
     low = atlas_dix[key]['low_high'][0]
 
     high = atlas_dix[key]['low_high'][1]
     if low == 0:
         s = np.where(index_whole < high)
     else:
-        s = np.where(np.logical_and(index_whole > low , index_whole < high))
+        s = np.where(np.logical_and(index_whole > low, index_whole < high))
 
-    indices = np.where(np.in1d(s,index_threshold))[0]
+    indices = np.where(np.in1d(s, index_threshold))[0]
 
     ss = s[0][indices]
 
     streamline_part = streamline_target[ss]
 
-    show_streamlines(atlas_part ,streamline_part,[0,0.5,0],[0,0,0.4],translate)
+    show_streamlines(atlas_part, streamline_part,
+                     [0, 0.5, 0], [0, 0, 0.4], translate)
 
-def computing_range_accuracy(low, high, index_whole, index_threshold,streamline_target, atlas_part, key):
-    ss, indices, streamline_part = finding_corresponding_index(low, high, index_whole, index_threshold,streamline_target)
 
-    streamline_np = np.array(streamline_part, dtype = np.object)
+def computing_range_accuracy(key, index_whole, index_threshold, streamline_target, atlas_part):
 
-    np.save(key,streamline_np)
+    ss, indices, streamline_part = finding_corresponding_index(key, index_whole, index_threshold, streamline_target)
 
-    jaccard,accuracy = computing_accuracy(atlas_part, streamline_part)
+    streamline_np = np.array(streamline_part, dtype=np.object)
+
+    np.save(key, streamline_np)
+    discrete_streamline_part = set_number_of_points(streamline_part, 20)
+
+    jaccard, accuracy = computing_accuracy(atlas_part, discrete_streamline_part)
 
     print(key)
     print(jaccard)
     print(accuracy)
 
-streamline_final, color_array_target, index_whole, index_threshold = getting_final_streamline(streamlines_target, centroids_atlas,color_array,50)
+if __name__ == '__main__':
+
+
+
+    res = getting_final_streamline(streamlines_target, centroids_atlas,
+                                   color_array, 15)
+    streamline_final, color_array_target, index_whole, index_threshold = res
+
+    visualization(keys[1], index_whole, index_threshold, streamlines_target, full_atlas2[1], False)
+
+#    discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
+    computing_range_accuracy(keys[1], index_whole, index_threshold,
+                             streamlines_target,
+                             atlas_part=full_atlas2[1])
