@@ -8,7 +8,7 @@ from dipy.align.streamlinear import remove_clusters_by_size
 
 from dipy.segment.clustering import QuickBundles
 
-from dipy.align.streamlinear import whole_brain_slr,progressive_slr
+from dipy.align.streamlinear import whole_brain_slr,progressive_slr, BundleMinDistanceStaticMetric
 
 from dipy.tracking.streamline import set_number_of_points
 
@@ -21,21 +21,93 @@ from dipy.segment.clustering import QuickBundles
 from dipy.segment.metric import MinimumAverageDirectFlipMetric, AveragePointwiseEuclideanMetric
 
 
-def show_streamlines(streamlines,streamlines2, color_array,color_array2,translate=False):
+def remove_outliers(streamline_atlas, pruning_thr=15):
+    discrete_streamlines = set_number_of_points(streamline_atlas, 20)
+    clusters = QuickBundles(threshold=20.,
+                            metric=metric).cluster(discrete_streamlines)
+    num_centroid = int(round(len(clusters) * 0.4))
+    if num_centroid == 0:
+        num_centroid = 1
+    centroid_atlas = []
+    for i in range(num_centroid):
+        centroid_atlas += [clusters[i].centroid]
+    # from ipdb import set_trace
+    # set_trace()
+    distance_matrix = bundles_distances_mdf(centroid_atlas,
+                                            discrete_streamlines)
+    stream_line_min = np.amin(distance_matrix, axis=0)
+    s = np.where(stream_line_min < pruning_thr)
+    ss = [s[0][i] for i in range(len(s[0]))]
+
+    return [streamline_atlas[i] for i in ss]
+
+
+def remove_short_streamlines_and_small_clusters(streamlines,
+                                                greater_than=50,
+                                                less_than=250,
+                                                qb_thr=15,
+                                                nb_pts=20,
+                                                rm_small_clusters=50):
+
+    def check_range(streamline, gt=greater_than, lt=less_than):
+
+        if (len(streamline) > gt) & (len(streamline) < lt):
+            return True
+        else:
+            return False
+
+    streamlines1 = ArraySequence([s for s in streamlines if check_range(s)])
+
+    rstreamlines1 = set_number_of_points(streamlines1, nb_pts)
+
+    qb1 = QuickBundles(threshold=qb_thr, metric=metric)
+    rstreamlines1 = [s.astype('f4') for s in rstreamlines1]
+    cluster_map1 = qb1.cluster(rstreamlines1)
+    clusters1 = remove_clusters_by_size(cluster_map1, rm_small_clusters)
+
+    print('Starting extending')
+    reduced = ArraySequence()
+    for cluster in clusters1:
+        reduced.extend(streamlines1[cluster.indices])
+
+    return reduced
+
+def show_bundle(streamlines, colors, size=(1000, 1000), tubes=False):
+    renderer = window.Renderer()
+    renderer.background((1, 1, 1))
+    if tubes:
+        renderer.add(actor.streamtube(streamlines, colors))
+    else:
+        renderer.add(actor.line(streamlines, colors))
+    window.show(renderer, size)
+
+def show_streamlines(streamlines, streamlines2,
+                     color_array, color_array2, translate=False, tubes=False, record_filename=None):
 
     renderer = window.Renderer()
     renderer.background((1, 1, 1))
-    st_actor = actor.line(streamlines, colors=color_array, opacity=1, linewidth=0.5, spline_subdiv=None, lod=True, lod_points=10 ** 4, lod_points_size=3, lookup_colormap=None)
+    if not tubes:
+        st_actor = actor.line(streamlines, colors=color_array, opacity=1, linewidth=2, spline_subdiv=None, lod=True, lod_points=10 ** 4, lod_points_size=3, lookup_colormap=None)
+    else:
+        st_actor = actor.streamtube(streamlines, color_array, linewidth=0.5)
     renderer.add(st_actor)
-    st_actor2 = actor.line(streamlines2, colors=color_array2, opacity=1, linewidth=0.5, spline_subdiv=None, lod=True, lod_points=10 ** 4, lod_points_size=3, lookup_colormap=None)
+
+    if not tubes:
+        st_actor2 = actor.line(streamlines2, colors=color_array2, opacity=1, linewidth=2,  spline_subdiv=None, lod=True, lod_points=10 ** 4, lod_points_size=3, lookup_colormap=None)
+    else:
+        st_actor2 = actor.streamtube(streamlines2, color_array2, linewidth=0.5)
+
     renderer.add(st_actor2)
 
     if translate:
-        st_actor.SetPosition(200,0,0)
+        st_actor.SetPosition(200, 0, 0)
     else:
         st_actor.SetPosition(0,0,0)
     st_actor2.SetPosition(0,0,0)
-    window.show(renderer, title='DIPY', size=(300, 300), png_magnify=1, reset_camera=True, order_transparent=False)
+    window.show(renderer, title='DIPY', size=(1000, 1000), reset_camera=True, order_transparent=False)
+
+    if record_filename is not None:
+        window.record(renderer, out_path=record_filename, size=(1000, 1000), magnification=3)
 
 
 # data_dir = '/Users/tiwanyan/Mount/'
@@ -78,6 +150,7 @@ atlas_dix['uf.right'] = {'filename' : dname_atlas + 'bundles_uf.right.trk'}
 # streamlines_file = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
 streamlines_file = data_dir + '2013_03_26_Emmanuelle_Renauld/streamlines_500K.trk'
 
+
 from dipy.io.trackvis import load_trk
 
 from nibabel.streamlines import ArraySequence
@@ -95,16 +168,15 @@ keys = []
 centroids_num = []
 total_centroid_num = 0
 
-
 for key in atlas_dix:
     filename = atlas_dix[key]['filename']
 
     streamlines, header = load_trk(filename)
 
-
-
     atlas_dix[key]['streamlines'] = streamlines
     discrete_streamlines = set_number_of_points(streamlines, 20)
+    discrete_streamlines = remove_outliers(discrete_streamlines, 15)
+
     clusters = QuickBundles(threshold=15.,
                             metric=metric).cluster(discrete_streamlines)
     atlas_dix[key]['centroids'] = clusters[0].centroid
@@ -133,15 +205,20 @@ color_array = np.random.rand(len(centroids_atlas), 3) * 10
 streamlines_target, header_target = load_trk(streamlines_file)
 
 print('Large streamlines loaded')
+print(len(streamlines_target))
+streamlines_target = remove_short_streamlines_and_small_clusters(
+    streamlines_target, less_than=300, rm_small_clusters=10)
+print(len(streamlines_target))
+print('Large streamlines reduced')
 
-def slr(streamlines_target,centroids_atlas2):
+
+def slr(streamlines_target, centroids_atlas2, disp=True, assym=True):
     greater_than = 50
     less_than = 250
     qb_thr = 15
     nb_pts = 20
-    rm_small_clusters=50
-    progressive=True
-    #x0='affine'
+    rm_small_clusters = 50
+    x0='affine'
 
     discrete_target = set_number_of_points(streamlines_target, nb_points=20)
 
@@ -158,34 +235,45 @@ def slr(streamlines_target,centroids_atlas2):
 
     rstreamlines1 = set_number_of_points(rstreamlines1, nb_pts)
 
-    #print('Resample finished', sep=' ', end='n', file=sys.stdout, flush=False)
-
     qb1 = QuickBundles(threshold=qb_thr, metric=metric)
     rstreamlines1 = [s.astype('f4') for s in rstreamlines1]
     cluster_map1 = qb1.cluster(rstreamlines1)
-    # clusters1 = remove_clusters_by_size(cluster_map1, rm_small_clusters)
-    qb_centroids = [cluster.centroid for cluster in cluster_map1]
-
-    #1/0
+    clusters1 = remove_clusters_by_size(cluster_map1, rm_small_clusters)
+    qb_centroids = [cluster.centroid for cluster in clusters1]
 
     bounds = [(-45, 45), (-45, 45), (-45, 45),
               (-30, 30), (-30, 30), (-30, 30),
               (0.6, 1.4), (0.6, 1.4), (0.6, 1.4),
               (-10, 10), (-10, 10), (-10, 10)]
-    slm = progressive_slr(centroids_atlas2, qb_centroids,
-                          x0='rigid', metric=None,
-                          bounds=bounds)
 
-#show_streamlines(qb_centroids1, centroids_atlas,translate = True)
-#streamline_final = ArraySequence()
-#color_array_target = []
+    if assym:
+        slr_metric = BundleMinDistanceStaticMetric()
+    else:
+        slr_metric = None
+    slm = progressive_slr(centroids_atlas2, qb_centroids,
+                          x0=x0, metric=slr_metric,
+                          bounds=bounds)
+    if disp:
+        print('Showing SLR result')
+        print(len(centroids_atlas2))
+        print(len(qb_centroids))
+
+        show_streamlines(centroids_atlas2, qb_centroids,
+                         [1, 0., 0], [1, 0.5, 0], tubes=True)
+        show_streamlines(centroids_atlas2, slm.transform(qb_centroids),
+                         [1, 0., 0], [1, 0.5, 0], tubes=True)
+        from ipdb import set_trace
+        set_trace()
+
     return slm.transform(discrete_target)
 
 
-def getting_final_streamline(streamlines_target, centroids_atlas2, color_array2, threshold, use_slr=True):
+def dm_pruning(streamlines_target, centroids_atlas2,
+               color_array2, threshold, use_slr=True):
 
     if use_slr:
-        discrete_target = slr(streamlines_target, centroids_atlas2)
+        discrete_target = slr(streamlines_target, centroids_atlas2, assym=False)
+        discrete_target = slr(streamlines_target, centroids_atlas2, assym=True)
     else:
         discrete_target = set_number_of_points(streamlines_target,
                                                nb_points=20)
@@ -204,7 +292,8 @@ def getting_final_streamline(streamlines_target, centroids_atlas2, color_array2,
 
 #    final_index_whole = index_whole[index_threshold[0]]
 
-    return streamline_final, color_array_target, index_whole, index_threshold
+    return streamline_final, color_array_target, index_whole, index_threshold, discrete_target
+
 
 def computing_accuracy(streamline_atlas, streamline_compute):
     distance_matrix = bundles_distances_mdf(streamline_atlas, streamline_compute)
@@ -245,7 +334,8 @@ def finding_corresponding_index(key, index_whole, index_threshold, streamline_ta
     return ss, indices, streamline_part
 
 
-def visualization(key, index_whole, index_threshold, streamline_target, atlas_part, translate=False):
+def show_detected_bundles(key, index_whole, index_threshold, streamline_target,
+                          atlas_part, translate=False):
     low = atlas_dix[key]['low_high'][0]
 
     high = atlas_dix[key]['low_high'][1]
@@ -272,20 +362,24 @@ def visualization(key, index_whole, index_threshold, streamline_target, atlas_pa
                      [0, 0.5, 0], [0, 0, 0.4], translate)
 
 
-def computing_range_accuracy(key, index_whole, index_threshold, streamline_target, atlas_part):
+def computing_range_accuracy(key, index_whole, index_threshold,
+                             streamline_target, atlas_part):
 
-    ss, indices, streamline_part = finding_corresponding_index(key, index_whole, index_threshold, streamline_target)
+    ss, indices, streamline_part = finding_corresponding_index(
+        key, index_whole, index_threshold, streamline_target)
 
     streamline_np = np.array(streamline_part, dtype=np.object)
 
     np.save(key, streamline_np)
     discrete_streamline_part = set_number_of_points(streamline_part, 20)
 
-    jaccard, accuracy = computing_accuracy(atlas_part, discrete_streamline_part)
+    jaccard, accuracy = computing_accuracy(atlas_part,
+                                           discrete_streamline_part)
 
     print(key)
     print(jaccard)
     print(accuracy)
+
 
 if __name__ == '__main__':
 
@@ -293,15 +387,23 @@ if __name__ == '__main__':
     use_slr = True
     compute_accuracy = False
 
-    res = getting_final_streamline(streamlines_target, centroids_atlas,
-                                   color_array, dm_thr, use_slr)
-    streamline_final, color_array_target, index_whole, index_threshold = res
+    print('Streamlines_target is...')
+    print(len(streamlines_target))
 
-    discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
+    res = dm_pruning(streamlines_target, centroids_atlas,
+                     color_array, dm_thr, use_slr)
+    streamline_final, color_array_target, index_whole, index_threshold, discrete_streamlines_target = res
+
+    #discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
+
+    # from ipdb import set_trace
+    # set_trace()
 
     for i in range(27):
-        visualization(keys[i], index_whole, index_threshold,
-                      discrete_streamlines_target, full_atlas2[i], True)
+        if keys[i] == 'ifof.left':
+            show_detected_bundles(keys[i], index_whole, index_threshold,
+                                  discrete_streamlines_target, full_atlas2[i],
+                                  True)
 
         if compute_accuracy:
             computing_range_accuracy(keys[i], index_whole, index_threshold,
