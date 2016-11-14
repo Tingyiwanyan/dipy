@@ -264,7 +264,7 @@ def saving(index_whole, index_threshold,streamline_target, keys):
             computing_range_accuracy(low, high, index_whole, index_threshold,streamline_target, full_atlas[i], keys[i])
 #    return computing_accuracy(atlas_part, streamline_part)
 
-streamline_final, color_array_target, index_whole, index_threshold = getting_final_streamline(streamlines_target, centroids_atlas2,color_array2,10)
+streamline_final, color_array_target, index_whole, index_threshold = getting_final_streamline(streamlines_target, centroids_atlas2,color_array2,15)
 
 #bundle_labels_npy = []
 

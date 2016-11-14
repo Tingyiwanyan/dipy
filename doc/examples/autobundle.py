@@ -20,6 +20,15 @@ from dipy.segment.clustering import QuickBundles
 
 from dipy.segment.metric import MinimumAverageDirectFlipMetric, AveragePointwiseEuclideanMetric
 
+def show_bundle(streamlines, colors, size=(1000, 1000), tubes=False):
+    renderer = window.Renderer()
+    renderer.background((1, 1, 1))
+    if tubes:
+        renderer.add(actor.streamtube(streamlines, colors))
+    else:
+        renderer.add(actor.line(streamlines, colors))
+    window.show(renderer, title='DIPY', size=(1000, 1000), png_magnify=1, reset_camera=True, order_transparent=False)
+
 
 def show_streamlines(streamlines,streamlines2, color_array,color_array2,translate=False):
 
@@ -76,7 +85,7 @@ atlas_dix['uf.left'] = {'filename' : dname_atlas + 'bundles_uf.left.trk'}
 atlas_dix['uf.right'] = {'filename' : dname_atlas + 'bundles_uf.right.trk'}
 
 streamlines_file = data_dir + '2013_02_26_Patrick_Delattre/streamlines_500K.trk'
-#streamlines_file = data_dir + '2013_02_13_Vincent_Laverdiere/streamlines_500K.trk'
+#streamlines_file = data_dir + '2013_02_08_Gabriel_Girard/streamlines_500K.trk'
 
 from dipy.io.trackvis import load_trk
 
@@ -87,7 +96,7 @@ centroids_atlas = []
 centroids_atlas2 = []
 color_array = []
 
-#metric = MinimumAverageDirectFlipMetric()
+# metric = MinimumAverageDirectFlipMetric()
 metric = AveragePointwiseEuclideanMetric()
 
 full_atlas2 = []
@@ -95,7 +104,7 @@ keys = []
 centroids_num = []
 total_centroid_num = 0
 
-def remove_outlier(streamline_atlas,threshold):
+def remove_outlier(streamline_atlas, threshold):
     discrete_streamlines = set_number_of_points(streamline_atlas, 20)
     clusters = QuickBundles(threshold=20.,
                             metric=metric).cluster(discrete_streamlines)
@@ -201,7 +210,7 @@ def slr(streamlines_target,centroids_atlas2):
     return slm.transform(discrete_target)
 
 
-def getting_final_streamline(streamlines_target, centroids_atlas2, color_array2, threshold, use_slr=True):
+def getting_final_streamline(streamlines_target, centroids_atlas2, color_array2,threshold, use_slr=True):
 
     if use_slr:
         discrete_target = slr(streamlines_target, centroids_atlas2)
@@ -308,7 +317,7 @@ def computing_range_accuracy(key, index_whole, index_threshold, streamline_targe
 
 if __name__ == '__main__':
 
-    dm_thr = 15
+    dm_thr = 10
     use_slr = True
     compute_accuracy = False
 
@@ -321,19 +330,45 @@ if __name__ == '__main__':
 #    set_trace()
     #streamline_atlas[ss]
 
-    #new_atlas = remove_outlier(full_atlas2[0],15)
+    # new_atlas = remove_outlier(full_atlas2[0],15)
 
-    res = getting_final_streamline(streamlines_target, centroids_atlas,
+    name = 'cst_2sub.out'
+
+    ind = np.loadtxt(name)
+    ind = ind.astype(int)
+    ss = np.array(range(500000))
+    s = np.delete(ss, ind)
+    streamline_new = streamlines_target[s]
+    res = getting_final_streamline(streamline_new, centroids_atlas,
                                    color_array, dm_thr, use_slr)
     streamline_final, color_array_target, index_whole, index_threshold = res
 
+    low = atlas_dix['cst.right']['low_high'][0]
+
+    high = atlas_dix['cst.right']['low_high'][1]
+
+    if low == 0:
+        s = np.where(index_whole < high)[0]
+    else:
+        s = np.where(np.logical_and(index_whole > low, index_whole < high))[0]
+
+    indices = np.where(np.in1d(s, index_threshold[0]))[0]
+
+    # print(s)
+    # set_trace()
+    ss = s[indices]
+    # set_trace()
+
+    # for discrete
+    streamline_part = [streamline_new[i] for i in ss]
+
     discrete_streamlines_target = set_number_of_points(streamlines_target, 20)
 
-    for i in range(27):
-        visualization(keys[i], index_whole, index_threshold,
-                      discrete_streamlines_target, full_atlas2[i], True)
+    # for i in range(27):
+    #    visualization(keys[i], index_whole, index_threshold,
+    #                  discrete_streamlines_target, full_atlas2[i], True)
 
-        if compute_accuracy:
-            computing_range_accuracy(keys[i], index_whole, index_threshold,
-                                     streamlines_target,
-                                     atlas_part=full_atlas2[i])
+    #    if compute_accuracy:
+    #        computing_range_accuracy(keys[i], index_whole, index_threshold,
+    #                                 streamlines_target,
+    #                                 atlas_part=full_atlas2[i])
