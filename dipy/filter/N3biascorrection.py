@@ -57,10 +57,10 @@ def N3biasfieldcorrection(t1_slic,log_t1,estimate_u,sample_f,numerator_u,h,expec
     """
     compute bias field(2D)
     """
-    f_new = np.zeros(shape = (t1_slic.shape[0],t1_slic.shape[1]),dtype = float)
-    u_new = np.zeros(shape = (t1_slic.shape[0],t1_slic.shape[1]),dtype = float)
-    f_real = np.zeros(shape = (t1_slic.shape[0],t1_slic.shape[1]),dtype = float)
-    u_real = np.zeros(shape = (t1_slic.shape[0],t1_slic.shape[1]),dtype = float)
+    f_new = np.zeros(shape=(t1_slic.shape[0], t1_slic.shape[1]))
+    u_new = np.zeros(shape = (t1_slic.shape[0],t1_slic.shape[1]))
+    f_real = np.zeros(shape = (t1_slic.shape[0],t1_slic.shape[1]))
+    u_real = np.zeros(shape = (t1_slic.shape[0],t1_slic.shape[1]))
     for i in np.array(range(t1_slic.shape[0])):
         for j in np.array(range(t1_slic.shape[1])):
             index = math.floor((log_t1[i,j] - h[0]) / sample_rate)
@@ -101,37 +101,43 @@ def N3biasfieldcorrection(t1_slic,log_t1,estimate_u,sample_f,numerator_u,h,expec
 
     return u_real,f_real,u_new,f_new
 
-def Initial_estimate(t1_slic):
+def initial_estimate(t1_slic):
 
     data = np.squeeze(t1_slic)
 
-    b0_mask,mask = median_otsu(data, 2, 1)
+    # b0_mask, mask = median_otsu(data, 2, 1)
 
     log_t1 = np.log10(t1_slic)
 
-    data = t1_slic.reshape((t1_slic.shape[0] * t1_slic.shape[1],1))
+    # data = t1_slic.reshape((t1_slic.shape[0] * t1_slic.shape[1],1))
 
-    log_data = np.log10(data)
+    log_data = np.log10(data.ravel())
 
-    g,h = np.histogram(log_data,bins = 100)
+    g, h = np.histogram(log_data, bins=100)
 
+    # plot histogram
+    # link how to fit the histogram
+    # http://stackoverflow.com/questions/7805552/fitting-a-histogram-with-python
+
+    # smooth the histogram
     g = gaussian_filter1d(g, 0.5)
     g = gaussian_filter1d(g, 0.5)
 
-    g = g /(t1_slic.shape[0] * t1_slic.shape[1])
-    #Dist_v = np.zeros((h[h.size-1],1))
+    g = g / (t1_slic.shape[0] * t1_slic.shape[1])
+    # Dist_v = np.zeros((h[h.size-1],1))
+    # plot it again
 
     """
     Gaussian distribution function
     """
     pi = 3.1415926
     u = 0
-    phi = (h[100] - h[0])/4
+    phi = (h[100] - h[0]) / 4.0
 
-    sample = 100
+    sample = 100.0
     sample_rate = (4 * phi) / sample
 
-
+    # ! gaussian_distribution
     def Gaussain_distribution(x,u,phi):
         """
         return Gaussian distribution values
@@ -145,16 +151,19 @@ def Initial_estimate(t1_slic):
 
     length = (h[100]-h[0])/sample_rate
 
-    sample_f = np.zeros((int(length) + int(zero_pad) + 100 - 1,),dtype = float)
-    sample_v = np.zeros((int(length) + int(zero_pad) + 100 - 1,),dtype = float)
-    estimate_u = np.zeros((int(length) + int(zero_pad) + 100 - 1,),dtype = float)
-    f_fft_comp = np.zeros((int(length) + int(zero_pad) + 100 - 1,),dtype = float)
+    sample_shape = (int(length) + int(zero_pad) + 100 - 1,)
 
-    numerator_e = np.zeros((int(length) + int(zero_pad) + 100 - 1,),dtype = float)
-    denominator_e = np.zeros((int(length) + int(zero_pad) + 100 - 1,), dtype = float)
-    numerator_u = np.zeros((int(length) + int(zero_pad) + 100 - 1,),dtype = float)
-    product_ifft = np.zeros((int(length) + int(zero_pad) + 100 - 1,),dtype = float)
-    expect = np.zeros((int(length) + int(zero_pad) + 100 - 1,),dtype = float)
+    sample_f = np.zeros(sample_shape)
+    sample_v = np.zeros(sample_shape)
+
+    estimate_u = np.zeros(sample_shape)
+
+    # f_fft_comp = np.zeros(sample_shape)
+    # numerator_e = np.zeros(sample_shape)
+    # denominator_e = np.zeros(sample_shape)
+    numerator_u = np.zeros(sample_shape)
+    # product_ifft = np.zeros(sample_shape)
+    expect = np.zeros(sample_shape)
 
     """
     Assign values to zero paded v signal
@@ -163,18 +172,30 @@ def Initial_estimate(t1_slic):
         sample_v[i + zero_pad] = g[i]
 
     """
-    Create Gausian distribution for bias field
+    Create Gaussian distribution for bias field
     """
     for i in np.array(range(100)):
         estimate_u[i + zero_pad] = g[i]
 
     for i in np.array(range(100)):
         sample_f[i] = Gaussain_distribution(-2 * phi + i*sample_rate, u, phi)
+        # plot sample_f[i]
 
     for i in np.array(range(100)):
         numerator_u[i + zero_pad] = estimate_u[i + zero_pad] * (h[0] + i * sample_rate)
 
-    u_real,f_real,u_log,f_log = N3biasfieldcorrection(t1_slic,log_t1,sample_v,sample_f,numerator_u,h,expect,sample_rate,zero_pad, True)
+    res = N3biasfieldcorrection(t1_slic,
+                                log_t1,
+                                sample_v,
+                                sample_f,
+                                numerator_u,
+                                h,
+                                expect,
+                                sample_rate,
+                                zero_pad,
+                                True)
+
+    u_real,f_real,u_log,f_log = res
 
     return u_real,f_real,u_log,f_log
 
@@ -270,7 +291,7 @@ def makeGaussian(size, center=None):
 
     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 #def main():
-imga = zeros([128, 128])
+imga = np.zeros([128, 128])
 
 for y in np.array(range(128)):
     for x in np.array(range(128)):
@@ -300,8 +321,8 @@ ft1 = dname + t1_input
 t1 = nib.load(ft1).get_data()
 affine_t1 = nib.load(ft1).affine
 
-t1_slic = t1[:,:,10]
-u_real, f_real, u_log, f_log = Initial_estimate(t1_slic)
+t1_slic = t1[:, :, 10]
+u_real, f_real, u_log, f_log = initial_estimate(t1_slic)
 
 u_real1,f_real1,u_log1,f_log1 = iterative_step(u_real,f_real,u_log,f_log,t1_slic,f_log)
 
