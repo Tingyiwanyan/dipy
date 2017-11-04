@@ -359,16 +359,22 @@ def return_streamline(seed,dirs,track_point,graph,value,with_stand=-3):
                 seed_onetrack.nodes2 = np.vstack((seed_onetrack.nodes2, graph[int(index_t)]))
 
         streamline2 = np.vstack((streamline2,track_point))
-    norm3_track1 = norm(seed_onetrack.nodes1 - [79,20,50],axis=1,ord=2)
-    norm3_track2 = norm(seed_onetrack.nodes2 - [79,20,50],axis=1,ord=2)
-    if norm3_track1.min() < 1.5:
-        positive1_test=False
+    if len(seed_onetrack.nodes1.shape) == 1:
+        norm3_track1 = norm(seed_onetrack.nodes1 - [79,20,50])
     else:
+        norm3_track1 = norm(seed_onetrack.nodes1 - [79,20,50],axis=1,ord=2)
+    if len(seed_onetrack.nodes2.shape) == 1:
+        norm3_track2 = norm(seed_onetrack.nodes2 - [79,20,50])
+    else:
+        norm3_track2 = norm(seed_onetrack.nodes2 - [79,20,50],axis=1,ord=2)
+    if norm3_track1.min() < 35:
         positive1_test=True
-    if norm3_track2.min() < 1.5:
-        positive2_test=False
     else:
+        positive1_test=False
+    if norm3_track2.min() < 35:
         positive2_test=True
+    else:
+        positive2_test=False
     value = ev_learning(graph, seed_onetrack.track1, seed_onetrack.track2, value,positive1=positive1_test,positive2=positive2_test)
     return streamline1,streamline2,graph,seed_onetrack, node_onetrack, value, decision1, decision2
 
@@ -452,8 +458,8 @@ if __name__ == "__main__":
             if norm2.min() < 1:
                 index_c = np.argmin(norm2)
                 streamlines_onetrack1,streamlines_onetrack2, graph_onetrack,seed_onetrack, node_onetrack1,value, decision1,decision2 = return_streamline(seed,pam.peak_dirs,seed,seeds_nodes_graph[index_c].graph,seeds_nodes_graph[index_c].value)
-                print("streamlines")
-                print(streamlines)
+                #print("streamlines")
+                #print(streamlines)
                 seeds_nodes_graph[index_c].graph = graph_onetrack
                 seeds_nodes_graph[index_c].value = value
                 seed_onetrack.index = index_c
