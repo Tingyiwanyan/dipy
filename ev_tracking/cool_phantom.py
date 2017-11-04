@@ -68,6 +68,13 @@ class Seed(object):
         self.position = position
         self.index = index
         self.track1 = []
+        self.track2 = []
+        self.nodes = []
+
+class Seed_node_graph(object):
+    def __init__(self, graph, value):
+        self.graph = graph
+        self.value = value
 
 
 if __name__ == "__main__":
@@ -146,17 +153,112 @@ if __name__ == "__main__":
     Points = vtk.vtkPoints()
     vertices = vtk.vtkCellArray()
     seed_nodes = []
+    seeds_nodes_graph = []
     graph = []
     seeds = []
+    seeds_index = []
     nodes = []
 
-    def Td_learning(graph, onetrack, reward_positive=1, reward_negative=-1):
-        for
+    def ev_learning(graph, onetrack1, onetrack2, value, reward_positive=100, reward_negative=-100, positive1=True, positive2=True, alfa=0.95, gamma=0.8):
+        #value = np.zeros(graph.shape[0])
+        #print(len(value))
+        #print(onetrack2)
+        print("value")
+        #print(value)
+        if positive1 == True:
+            reward1 = reward_positive
+        else:
+            reward1 = reward_negative
+        for i in range(len(onetrack1)):
+            if i == 0:
+                value[int(onetrack1[len(onetrack1)-(i+1)])] = reward1
+            else:
+                #print(i)
+                #print(value[int(onetrack1[len(onetrack1)-i])])
+                value[int(onetrack1[len(onetrack1)-(i+1)])] = value[int(onetrack1[len(onetrack1)-(i+1)])] + alfa*(value[int(onetrack1[len(onetrack1)-i])]-value[int(onetrack1[len(onetrack1)-(i+1)])])
+                #print(value[int(onetrack1[len(onetrack1)-(i+1)])])
+
+        if positive2 == True:
+            reward2 = reward_positive
+        else:
+            reward2 = reward_negative
+        for i in range(len(onetrack2)):
+            if i == 0:
+                value[int(onetrack2[len(onetrack2)-(i+1)])] = reward2
+            else:
+                value[int(onetrack2[len(onetrack2)-(i+1)])] = value[int(onetrack2[len(onetrack2)-(i+1)])] + alfa*(value[int(onetrack2[len(onetrack2)-i])]-value[int(onetrack2[len(onetrack2)-(i+1)])])
+
+        return value
 
 
-    def return_streamline(seed,dirs,track_point,graph):
+    def find_track_point(dirs,track_point,onetrack,graph,value,index,with_stand, direction=True):
+        direction1 = dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),index,:]
+        if direction == True:
+            track_point_test = track_point + direction1
+        else:
+            track_point_test = track_point - direction1
+        if len(graph.shape) == 1:
+            norm2 = norm(graph-track_point_test)
+        else:
+            norm2 = norm(graph-track_point_test,axis=1,ord=2)
+        if norm2.min() < 1:
+            index_t = np.argmin(norm2)
+            if value[int(index_t)] > with_stand or value[int(index_t)] == with_stand:
+                if not np.any(onetrack == index_t):
+                    #seed_onetrack.track1 = np.append(seed_onetrack.track1,index_t)
+                    onetrack = np.append(onetrack,index_t)
+                    return 0, onetrack, index_t, graph, value
+            #print(node_onetrack)
+                """
+                if len(graph.shape) == 1:
+                    node_onetrack = np.vstack((node_onetrack,graph))
+                else:
+                    node_onetrack = np.vstack((node_onetrack,graph[index_t]))
+                """
+            #if value[index_t] < with_stand:
+            #    return [], onetrack, index_t, graph, value
+            """
+            else:
+                index = index + 1
+                if dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),index,:].max() !=0:
+                    track_point_test2 = track_point + dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),index,:]
+                    return find_track_point(dirs, track_point,onetrack,graph,value,index,with_stand)
+                else:
+                    #onetrack = np.append(onetrack,index_t)
+                    return 0, onetrack, index_t, graph, value
+            """
+        else:
+            if len(graph.shape) == 1:
+                index_t = 1
+            else:
+                index_t = graph.shape[0]
+            graph = np.vstack((graph,track_point_test))
+            value = np.append(value,0.0)
+            onetrack = np.append(onetrack, index_t)
+            #node_onetrack = np.vstack((node_onetrack,track_point))
+            return track_point_test, onetrack, index_t, graph, value
+
+    def find_track_point2(dirs, track_point, graph, value, direc=True):
+        if direc == True:
+            track_point_test = track_point + dirs
+        else:
+            track_point_test = track_point - dirs
+        if len(graph.shape) == 1:
+            norm2 = norm(graph-track_point_test)
+        else:
+            norm2 = norm(graph-track_point_test,axis=1,ord=2)
+        if norm2.min() < 1:
+            index_t = np.argmin(norm2)
+            return value[index_t], 1
+        else:
+            return 0.0, 0
+
+
+
+    def return_streamline(seed,dirs,track_point,graph,value,with_stand=-3):
         streamline = seed
         node_onetrack = []
+        decision = 1
         if len(graph.shape) == 1:
             index_c = 0
             node_onetrack = seed
@@ -164,14 +266,18 @@ if __name__ == "__main__":
             norm2 = norm(graph-seed,axis=1,ord=2)
             if norm2.min() < 1:
                 index_c = np.argmin(norm2)
+                #if value[index_c] < with_stand:
+                #    return []
                 node_onetrack = graph[index_c]
             else:
                 index_c = graph.shape[0]
                 graph = np.vstack((graph,seed))
+                value = np.append(value,0.0)
                 node_onetrack = seed
 
         seed_onetrack = Seed(seed, index_c)
-        np.append(seed_onetrack.track1, index_c)
+        seed_onetrack.track1 = np.append(seed_onetrack.track1, index_c)
+        seed_onetrack.track2 = np.append(seed_onetrack.track2, index_c)
         #seeds.append(seed_onetrack)
 
         #state_action = State_action(dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),0,:], track_point, 0)
@@ -181,58 +287,184 @@ if __name__ == "__main__":
         vertices.InsertNextCell(1)
         vertices.InsertCellPoint(id)
         """
-        while(FA[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2]))] != 0):
-            direction = dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),0,:]
-            track_point = track_point + direction
+        while(FA[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2]))] != 0 ):
+        #node = Node(direction, track_point,0)
+        #graph.append(node)
+            #index = 0
+            with_stand = -5
+            index_inside = 0
+            value_single = -500
+            for i in range(5):
+                dir_sub = dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),i,:]
+                if dir_sub.all() == True:
+                    value_single_test, out_flag = find_track_point2(dir_sub, track_point, graph, value, direc=True)
+                    print("value_single_test")
+                    print(value_single_test)
+                    if value_single_test > value_single:
+                        index_inside = i
+                        value_single = value_single_test
+            track_point = track_point + dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),index_inside,:]
             if len(graph.shape) == 1:
                 norm2 = norm(graph-track_point)
             else:
                 norm2 = norm(graph-track_point,axis=1,ord=2)
             if norm2.min() < 1:
                 index_t = np.argmin(norm2)
-                if not np.any(seed_onetrack.track1 == index_t):
-                    seed_onetrack.track1.append(index_t)
+                if value[int(index_t)] > with_stand or value[int(index_t)] == with_stand:
+                    if not np.any(seed_onetrack.track1 == index_t):
+                        #seed_onetrack.track1 = np.append(seed_onetrack.track1,index_t)
+                        seed_onetrack.track1 = np.append(seed_onetrack.track1,index_t)
+                else:
+                    if not np.any(seed_onetrack.track1 == index_t):
+                        #seed_onetrack.track1 = np.append(seed_onetrack.track1,index_t)
+                        seed_onetrack.track1 = np.append(seed_onetrack.track1,index_t)
+                        decision = 0
+            else:
+                if len(graph.shape) == 1:
+                    index_t = 1
+                else:
+                    index_t = graph.shape[0]
+                graph = np.vstack((graph,track_point))
+                value = np.append(value,0.0)
+                seed_onetrack.track1 = np.append(seed_onetrack.track1, index_t)
+
+
+
+            #track_point,seed_onetrack.track1,index_t,graph,value=find_track_point(dirs,track_point,seed_onetrack.track1,graph,value,index,with_stand)#, direction=True)
+            streamline = np.vstack((streamline,track_point))
+
+        track_point = seed
+        while(FA[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2]))] != 0):
+            """
+            direction = dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),0,:]
+            track_point = track_point - direction
+            if len(graph.shape) == 1:
+                norm2 = norm(graph-track_point)
+            else:
+                norm2 = norm(graph-track_point,axis=1,ord=2)
+            if norm2.min() < 1:
+                index_t = np.argmin(norm2)
+                if not np.any(seed_onetrack.track2 == index_t):
+                    seed_onetrack.track2 = np.append(seed_onetrack.track2,index_t)
                 #print(node_onetrack)
                     if len(graph.shape) == 1:
                         node_onetrack = np.vstack((node_onetrack,graph))
                     else:
                         node_onetrack = np.vstack((node_onetrack,graph[index_t]))
             else:
-                index_t = graph.shape[0]
+                if len(graph.shape) == 1:
+                    index_t = 1
+                else:
+                    index_t = graph.shape[0]
                 graph = np.vstack((graph,track_point))
-                seed_onetrack.track1.append(index_t)
+                value = np.append(value,0.0)
+                seed_onetrack.track2 = np.append(seed_onetrack.track2, index_t)
                 node_onetrack = np.vstack((node_onetrack,track_point))
 
+        #node = Node(direction, track_point,0)
+        #graph.append(node)
+            """
+            with_stand = -5
+            index_inside = 0
+            value_single = -500
+            for i in range(5):
+                dir_sub = dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),i,:]
+                if dir_sub.all() == True:
+                    value_single_test, out_flag = find_track_point2(dir_sub, track_point, graph, value, direc=False)
+                    print("value_single_test")
+                    print(value_single_test)
+                    if value_single_test > value_single:
+                        index_inside = i
+                        value_single = value_single_test
+            track_point = track_point - dirs[int(np.round(track_point[0])),int(np.round(track_point[1])),int(np.round(track_point[2])),index_inside,:]
+            if len(graph.shape) == 1:
+                norm2 = norm(graph-track_point)
+            else:
+                norm2 = norm(graph-track_point,axis=1,ord=2)
+            if norm2.min() < 1:
+                index_t = np.argmin(norm2)
+                if value[int(index_t)] > with_stand or value[int(index_t)] == with_stand:
+                    if not np.any(seed_onetrack.track2 == index_t):
+                        #seed_onetrack.track1 = np.append(seed_onetrack.track1,index_t)
+                        seed_onetrack.track2 = np.append(seed_onetrack.track2,index_t)
+                else:
+                    if not np.any(seed_onetrack.track2 == index_t):
+                        #seed_onetrack.track1 = np.append(seed_onetrack.track1,index_t)
+                        seed_onetrack.track2 = np.append(seed_onetrack.track2,index_t)
+                        decision = 0
+            else:
+                if len(graph.shape) == 1:
+                    index_t = 1
+                else:
+                    index_t = graph.shape[0]
+                graph = np.vstack((graph,track_point))
+                value = np.append(value,0.0)
+                seed_onetrack.track2 = np.append(seed_onetrack.track2, index_t)
 
-            #node = Node(direction, track_point,0)
-            #graph.append(node)
+
+
+            #track_point,seed_onetrack.track1,index_t,graph,value=find_track_point(dirs,track_point,seed_onetrack.track1,graph,value,index,with_stand)#, direction=True)
             streamline = np.vstack((streamline,track_point))
-            """
-            id = Points.InsertNextPoint(track_point[0],track_point[1],track_point[2])
-            vertices.InsertNextCell(1)
-            vertices.InsertCellPoint(id)
-            """
-        return streamline,graph,seed_onetrack, node_onetrack
+        #value = []
+        value = ev_learning(graph, seed_onetrack.track1, seed_onetrack.track2,value)
+        """
+        id = Points.InsertNextPoint(track_point[0],track_point[1],track_point[2])
+        vertices.InsertNextCell(1)
+        vertices.InsertCellPoint(id)
+        """
+        return streamline,graph,seed_onetrack, node_onetrack, value
 
     seed = n[1500]
     graph = seed
+    value = [0.0]
     seed_nodes = seed
     #seed_onetrack = Seed(seed, 0)
     #seeds.append(seed_onetrack)
-    stremlines_onetrack, graph_onetrack,seed_onetrack, node_onetrack1 = return_streamline(seed,pam.peak_dirs,seed,graph)
+    stremlines_onetrack, graph_onetrack,seed_onetrack, node_onetrack1,value = return_streamline(seed,pam.peak_dirs,seed,graph,value)
     streamlines.append(stremlines_onetrack)
-    nodes.append(node_onetrack1)
+    seed_onetrack.nodes = node_onetrack1
+    seed_onetrack.index = 0
+    #nodes.append(node_onetrack1)
     seeds.append(seed_onetrack)
-    graph = graph_onetrack
+    one_seed_node_graph = Seed_node_graph(graph_onetrack, value)
+    seeds_nodes_graph.append(one_seed_node_graph)
+    #graph = graph_onetrack
 
-    for i in range(500):#len(n)):
+    for i in range(20):#len(n)):
         seed = n[i+1501]
-        stremlines_onetrack, graph_onetrack,seed_onetrack, node_onetrack1 = return_streamline(seed,pam.peak_dirs,seed,graph)
+        if len(seed_nodes.shape) == 1:
+            norm2 = norm(seed_nodes-seed)
+        if len(seed_nodes.shape) != 1:
+            norm2 = norm(seed_nodes-seed,axis=1,ord=2)
+        if norm2.min() < 1:
+            index_c = np.argmin(norm2)
+            stremlines_onetrack, graph_onetrack,seed_onetrack, node_onetrack1,value = return_streamline(seed,pam.peak_dirs,seed,seeds_nodes_graph[index_c].graph,seeds_nodes_graph[index_c].value)
+            print("streamlines")
+            print(streamlines)
+            seeds_nodes_graph[index_c].graph = graph_onetrack
+            seeds_nodes_graph[index_c].value = value
+            seed_onetrack.index = index_c
+            seed_onetrack.nodes = node_onetrack1
+            #seeds[index_c] = seed_onetrack
+            seeds.append(seed_onetrack)
+        else:
+            index_c = seed_nodes.shape[0]
+            seed_nodes = np.vstack((seed_nodes,seed))
+            graph = seed
+            value = [0.0]
+            stremlines_onetrack, graph_onetrack,seed_onetrack, node_onetrack1, value = return_streamline(seed,pam.peak_dirs,seed,graph,value)
+            one_seed_node_graph = Seed_node_graph(graph_onetrack, value)
+            seeds_nodes_graph.append(one_seed_node_graph)
+            seed_onetrack.nodes = node_onetrack1
+            seed_onetrack.index = index_c
+            seeds.append(seed_onetrack)
+
+        #sstremlines_onetrack, graph_onetrack,seed_onetrack, node_onetrack1 = return_streamline(seed,pam.peak_dirs,seed,graph)
         #streamlines.append(return_streamline(seed,pam.peak_dirs,seed,graph))
         streamlines.append(stremlines_onetrack)
-        nodes.append(node_onetrack1)
-        seeds.append(seed_onetrack)
-        graph = graph_onetrack
+        #nodes.append(node_onetrack1)
+        #seeds.append(seed_onetrack)
+        #graph = graph_onetrack
 
     from dipy.viz import actor, window
     from dipy.tracking.local import LocalTracking
@@ -245,16 +477,28 @@ if __name__ == "__main__":
         streamlines_actor = actor.line(streamlines)
 
         r = window.Renderer()
+        fvtk.clear(r)
         r.background((1,1,1))
-        r.add(streamlines_actor)
+        fvtk.add(r, streamlines_actor)
         window.show(r)
-        r.clear()
-        node_actor = actor.streamtube([nodes[100]])
-        colors = np.random.rand(graph.shape[0],3)
-        point_actor = fvtk.point(graph,colors)
-        r.add(point_actor)
-        r.add(node_actor)
-        window.show(r)
+        for i in range(len(seeds_nodes_graph)):
+            #r.clear()
+            #node_actor = actor.streamtube([nodes[100]])
+            if len(seeds_nodes_graph[i].graph.shape) == 1:
+                #colors = np.random.rand(1,3)
+                colors = np.array((1,1 - seeds_nodes_graph[i].value[0]/100,1 - seeds_nodes_graph[i].value[0]/100))
+                point_actor = fvtk.point(seeds_nodes_graph[i].graph[None,:],colors, point_radius=0.3)
+            else:
+                #colors = np.random.rand(seeds_nodes_graph[i].graph.shape[0],3)#graph.shape[0],3)
+                colors = np.ones((seeds_nodes_graph[i].graph.shape[0],3))
+                colors[:,2] = 1 - seeds_nodes_graph[i].value/100
+                colors[:,1] = 1 - seeds_nodes_graph[i].value/100
+                point_actor = fvtk.point(seeds_nodes_graph[i].graph,colors, point_radius=0.3)
+            fvtk.add(r, point_actor)
+            #r.add(node_actor)
+            window.show(r)
+
+
         #r.rm(streamlines_actor)
 
 
