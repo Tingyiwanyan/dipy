@@ -212,8 +212,8 @@ def find_track_point(dirs, track_point, graph, value, direc=True):
 def return_streamline(seed,dirs,track_point,graph,value,with_stand=-3):
     """ returns one streamline, generates graph and does RL
     """
-    streamline1 = seed
-    streamline2 = seed
+    streamline = seed
+    #streamline2 = seed
     node_onetrack = []
     decision1 = 1
     decision2 = 1
@@ -249,24 +249,59 @@ def return_streamline(seed,dirs,track_point,graph,value,with_stand=-3):
         t2 = int(np.round(track_point[2]))
         return t0, t1, t2
 
-    while(FA[itp(track_point)] != 0 ):
-
+    def check_direction(dirs,t0,t1,t2):
+        for i in range(3):
+            for j in range(3):
+                for k in range(3):
+                    dir_sub = dirs[t0+i, t1+j, t2+k, 0,:]
+                    if not dir_sub.all() == False:
+                        t0 = t0 + i
+                        t1 = t1 + j
+                        t2 = t2 + k
+                        return t0,t1,t2
+                    dir_sub = dirs[t0-i,t1-j,t2-k,0,:]
+                    if not dir_sub.all() == False:
+                        t0 = t0 - i
+                        t1 = t1 - j
+                        t2 = t2 - k
+                        return t0,t1,t2
+        return t0,t1,t2
+    t0,t1,t2 = itp(track_point)
+    while(FA[t0,t1,t2] != 0 ):
         #index = 0
         with_stand = -5
         index_inside = 0
+        flag_pos_neg = 1
         value_single = -500
+        #t0, t1, t2 = itp(track_point)
+        #dir_sub = dirs[t0, t1, t2, 0,:]
+        #if dir_sub.all() == False:
+        #    print("Im here in picking direction!")
+        #    t0, t1, t2 = check_direction(dirs,t0,t1,t2)
+        #    print(t0,t1,t2)
         for i in range(5):
-            t0, t1, t2 = itp(track_point)
+            #t0, t1, t2 = itp(track_point)
             dir_sub = dirs[t0, t1, t2, i,:]
+            dir_sub2 = -dirs[t0, t1, t2, i, :]
             if dir_sub.all() == True:
                 value_single_test, out_flag = find_track_point(dir_sub, track_point, graph, value, direc=True)
 
                 if value_single_test > value_single:
                     index_inside = i
+                    flag_pos_neg = 1
+                    value_single = value_single_test
+            if dir_sub2.all() == True and i != 0:
+                value_single_test, out_flag = find_track_point(dir_sub2, track_point, graph, value, direc=True)
+
+                if value_single_test > value_single:
+                    index_inside = i
+                    flag_pos_neg = 0
                     value_single = value_single_test
 
-        t0, t1, t2 = itp(track_point)
-        track_point = track_point + dirs[t0, t1, t2, index_inside,:]
+        if flag_pos_neg == 1:
+            track_point = track_point + dirs[t0, t1, t2, index_inside,:]
+        if flag_pos_neg == 0:
+            track_point = track_point - dirs[t0, t1, t2, index_inside,:]
         if len(graph.shape) == 1:
             norm2 = norm(graph-track_point)
         else:
@@ -301,29 +336,57 @@ def return_streamline(seed,dirs,track_point,graph,value,with_stand=-3):
             else:
                 #print(seed_onetrack.nodes1)
                 #print("graph")
-                print(graph[int(index_t)])
+                #print(graph[int(index_t)])
                 seed_onetrack.nodes1 = np.vstack((seed_onetrack.nodes1, graph[int(index_t)]))
 
-        streamline1 = np.vstack((streamline1,track_point))
+        streamline = np.vstack((streamline,track_point))
+        t0, t1, t2 = itp(track_point)
+        dir_sub = dirs[t0, t1, t2, 0,:]
+        if dir_sub.all() == False:
+            #print("Im here in picking direction!")
+            t0, t1, t2 = check_direction(dirs,t0,t1,t2)
+            #print(t0,t1,t2)
+    #print("stop at")
+    #print(track_point)
+    #print("FA value is")
+    #print(FA[itp(track_point)])
 
     track_point = seed
-
-    while(FA[itp(track_point)] != 0):
+    t0,t1,t2 = itp(track_point)
+    while(FA[t0,t1,t2] != 0):
 
         with_stand = -5
         index_inside = 0
+        flag_pos_neg = 1
         value_single = -500
+        t0, t1, t2 = itp(track_point)
+        dir_sub = -dirs[t0, t1, t2, 0,:]
+        if dir_sub.all() == False:
+            t0, t1, t2 = check_direction(dirs,t0,t1,t2)
         for i in range(5):
-            t0, t1, t2 = itp(track_point)
-            dir_sub = dirs[t0, t1, t2, i, :]
+            #t0, t1, t2 = itp(track_point)
+            dir_sub = -dirs[t0, t1, t2, i,:]
+            dir_sub2 = dirs[t0, t1, t2, i, :]
             if dir_sub.all() == True:
-                value_single_test, out_flag = find_track_point(dir_sub, track_point, graph, value, direc=False)
+                value_single_test, out_flag = find_track_point(dir_sub, track_point, graph, value, direc=True)
+
                 if value_single_test > value_single:
                     index_inside = i
+                    flag_pos_neg = 1
+                    value_single = value_single_test
+            if dir_sub2.all() == True and i != 0:
+                value_single_test, out_flag = find_track_point(dir_sub2, track_point, graph, value, direc=True)
+
+                if value_single_test > value_single:
+                    index_inside = i
+                    flag_pos_neg = 0
                     value_single = value_single_test
 
-        t0, t1, t2 = itp(track_point)
-        track_point = track_point - dirs[t0, t1, t2, index_inside, :]
+        if flag_pos_neg == 1:
+            track_point = track_point - dirs[t0, t1, t2, index_inside,:]
+        if flag_pos_neg == 0:
+            track_point = track_point + dirs[t0, t1, t2, index_inside,:]
+        #track_point = track_point - dirs[t0, t1, t2, index_inside, :]
         if len(graph.shape) == 1:
             norm2 = norm(graph-track_point)
         else:
@@ -358,30 +421,46 @@ def return_streamline(seed,dirs,track_point,graph,value,with_stand=-3):
             else:
                 seed_onetrack.nodes2 = np.vstack((seed_onetrack.nodes2, graph[int(index_t)]))
 
-        streamline2 = np.vstack((streamline2,track_point))
-    if len(seed_onetrack.nodes1.shape) == 1:
-        norm3_track1 = norm(seed_onetrack.nodes1 - [79,20,50])
+        streamline = np.vstack((streamline,track_point))
+        t0, t1, t2 = itp(track_point)
+        dir_sub = dirs[t0, t1, t2, 0,:]
+        if dir_sub.all() == False:
+            #print("Im here in picking direction!")
+            t0, t1, t2 = check_direction(dirs,t0,t1,t2)
+            #print(t0,t1,t2)
+    #print("stop at")
+    #print(track_point)
+    #print("FA value is")
+    #print(FA[itp(track_point)])
+    if len(graph.shape) == 1:
+        norm3_track1 = norm(graph - [50,79,50])
     else:
-        norm3_track1 = norm(seed_onetrack.nodes1 - [79,20,50],axis=1,ord=2)
+        norm3_track1 = norm(graph - [50,79,50],axis=1,ord=2)
+    """
     if len(seed_onetrack.nodes2.shape) == 1:
-        norm3_track2 = norm(seed_onetrack.nodes2 - [79,20,50])
+        norm3_track2 = norm(seed_onetrack.nodes2 - [79,50,50])
     else:
-        norm3_track2 = norm(seed_onetrack.nodes2 - [79,20,50],axis=1,ord=2)
-    if norm3_track1.min() < 35:
+        norm3_track2 = norm(seed_onetrack.nodes2 - [79,50,50],axis=1,ord=2)
+    """
+    if norm3_track1.min() < 10:
         positive1_test=True
+        positive2_test=True
     else:
         positive1_test=False
-    if norm3_track2.min() < 35:
+        positive2_test=False
+    """
+    if norm3_track2.min() < 10:
         positive2_test=True
     else:
         positive2_test=False
+    """
     value = ev_learning(graph, seed_onetrack.track1, seed_onetrack.track2, value,positive1=positive1_test,positive2=positive2_test)
-    return streamline1,streamline2,graph,seed_onetrack, node_onetrack, value, decision1, decision2
+    return streamline, graph,seed_onetrack, node_onetrack, value, decision1, decision2
 
 
 if __name__ == "__main__":
 
-    vol = np.load('vol.npy')
+    vol = np.load('vol_reg_cross.npy')
     tensor_model = TensorModel(gtab)
     tensor_fit = tensor_model.fit(vol)
     FA = tensor_fit.fa
@@ -427,17 +506,14 @@ if __name__ == "__main__":
 
 
     #seed = n[1500]
-    seed = np.array((20,21,50))
+    seed = np.array((20,50,50))
     graph = seed
     value = [0.0]
     seed_nodes = seed
     #seed_onetrack = Seed(seed, 0)
     #seeds.append(seed_onetrack)
-    streamlines_onetrack1,streamlines_onetrack2, graph_onetrack,seed_onetrack, node_onetrack1,value, decision1, decision2 = return_streamline(seed,pam.peak_dirs,seed,graph,value)
-    if decision1 == 1:
-        streamlines.append(streamlines_onetrack1)
-    if decision2 == 1:
-        streamlines.append(streamlines_onetrack2)
+    streamlines_onetrack,graph_onetrack,seed_onetrack, node_onetrack1,value, decision1, decision2 = return_streamline(seed,pam.peak_dirs,seed,graph,value)
+    streamlines.append(streamlines_onetrack)
     seed_onetrack.nodes = node_onetrack1
     seed_onetrack.index = 0
     #nodes.append(node_onetrack1)
@@ -447,9 +523,10 @@ if __name__ == "__main__":
     #graph = graph_onetrack
 
     for i in range(len(n)):
-        seed = n[i]
-        test = np.array((20,21,50))
+        seed = n[5]
+        test = np.array((20,50,50))
         if norm(seed - test) < 3:
+            #print(i)
             #seed = np.array((20,21,50))
             if len(seed_nodes.shape) == 1:
                 norm2 = norm(seed_nodes-seed)
@@ -457,7 +534,7 @@ if __name__ == "__main__":
                 norm2 = norm(seed_nodes-seed,axis=1,ord=2)
             if norm2.min() < 1:
                 index_c = np.argmin(norm2)
-                streamlines_onetrack1,streamlines_onetrack2, graph_onetrack,seed_onetrack, node_onetrack1,value, decision1,decision2 = return_streamline(seed,pam.peak_dirs,seed,seeds_nodes_graph[index_c].graph,seeds_nodes_graph[index_c].value)
+                streamlines_onetrack, graph_onetrack,seed_onetrack, node_onetrack1,value, decision1,decision2 = return_streamline(seed,pam.peak_dirs,seed,seeds_nodes_graph[index_c].graph,seeds_nodes_graph[index_c].value)
                 #print("streamlines")
                 #print(streamlines)
                 seeds_nodes_graph[index_c].graph = graph_onetrack
@@ -471,18 +548,19 @@ if __name__ == "__main__":
                 seed_nodes = np.vstack((seed_nodes,seed))
                 graph = seed
                 value = [0.0]
-                streamlines_onetrack1,streamlines_onetrack2, graph_onetrack,seed_onetrack, node_onetrack1, value, decision1,decision2 = return_streamline(seed,pam.peak_dirs,seed,graph,value)
+                streamlines_onetrack, graph_onetrack,seed_onetrack, node_onetrack1, value, decision1,decision2 = return_streamline(seed,pam.peak_dirs,seed,graph,value)
                 one_seed_node_graph = Seed_node_graph(graph_onetrack, value)
                 seeds_nodes_graph.append(one_seed_node_graph)
                 seed_onetrack.nodes = node_onetrack1
                 seed_onetrack.index = index_c
                 seeds.append(seed_onetrack)
 
-            if decision1 == 1:
-                streamlines.append(streamlines_onetrack1)
-            if decision2 == 1:
-                streamlines.append(streamlines_onetrack2)
+            #if decision1 == 1:
+            streamlines.append(streamlines_onetrack)
+            #if decision2 == 1:
+            #streamlines.append(streamlines_onetrack2)
+
 
 
 print('Finished')
-#show_graph_values(streamlines, seeds_nodes_graph)
+#
